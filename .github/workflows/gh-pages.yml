@@ -1,57 +1,47 @@
----
 name: github pages
 
 on:
   push:
     branches:
       - main
-  schedule:
-    - cron: 11 06 * * *
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
         with:
-          # Number of commits to fetch. 0 indicates all history.
-          # Default: 1
-          fetch-depth: 0
-      - uses: pdm-project/setup-pdm@main
-        name: Setup Python and PDM
+          python-version: '3.8'
+
+      - name: Upgrade pip
+        run: |
+          # install pip=>20.1 to use "pip cache dir"
+          python3 -m pip install --upgrade pip
+
+      - name: Get pip cache dir
+        id: pip-cache
+        run: echo "::set-output name=dir::$(pip cache dir)"
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
         with:
-          python-version: 3.9
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: pip install packaging==21.3 make install
+        run: python3 -m pip install -r ./requirements.txt
 
-      - name: Update requirements
-        run: make update
-
-      - name: Make the newsletters
-        run: make build-newsletters
-
-      - name: Commit files
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add pdm.lock
-          git add docs/newsletter
-          git diff-index --quiet HEAD \
-            || git commit -m "chore: update dependency and publish newsletters"
-
-      - name: Make the site
-        run: make build-docs
-
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
+      - run: mkdocs build
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
-          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
+          cname: notes.mrkaran.dev
+

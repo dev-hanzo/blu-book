@@ -1,77 +1,25 @@
-.DEFAULT_GOAL := docs
+.PHONY: build
+build:
+	mkdocs build --verbose
 
-.PHONY: install
-install:
-	pdm install
-
-.PHONY: update
-update:
-	@echo "-------------------------"
-	@echo "- Updating dependencies -"
-	@echo "-------------------------"
-
-	pdm update --no-sync
-	pdm sync --clean
-
-	@echo "\a"
+.PHONY: serve
+serve:
+	mkdocs serve
 
 .PHONY: clean
 clean:
-	@echo "---------------------------"
-	@echo "- Cleaning unwanted files -"
-	@echo "---------------------------"
+	rm -rf site/
 
-	rm -rf `find . -name __pycache__`
-	rm -f `find . -type f -name '*.py[co]' `
-	rm -f `find . -type f -name '*.rej' `
-	rm -rf `find . -type d -name '*.egg-info' `
-	rm -f `find . -type f -name '*~' `
-	rm -f `find . -type f -name '.*~' `
-	rm -rf .cache
-	rm -rf .pytest_cache
-	rm -rf .mypy_cache
-	rm -rf htmlcov
-	rm -f .coverage
-	rm -f .coverage.*
-	rm -rf build
-	rm -rf dist
-	rm -f src/*.c pydantic/*.so
-	rm -rf site
-	rm -rf docs/_build
-	rm -rf docs/.changelog.md docs/.version.md docs/.tmp_schema_mappings.html
-	rm -rf codecov.sh
-	rm -rf coverage.xml
+.PHONY: fresh
+fresh: clean serve
 
-	@echo ""
+.PHONY: run
+run:
+	docker run --rm -it -p 8000:8000 -v ${PWD}:/docs squidfunk/mkdocs-material:7.1.5
 
-.PHONY: docs
-docs:
-	@echo "-------------------------"
-	@echo "- Serving documentation -"
-	@echo "-------------------------"
-
-	pdm run mkdocs serve
-
-	@echo ""
-
-.PHONY: build-docs
-build-docs:
-	@echo "--------------------------"
-	@echo "- Building documentation -"
-	@echo "--------------------------"
-
-	pdm run mkdocs build --strict
-
-	@echo "\a"
-
-# We can't build --strict because the newsletters are not yet added to the git index,
-# and the --strict fails.
-.PHONY: build-newsletters
-build-newsletters:
-	@echo "--------------------------"
-	@echo "- Building newsletters -"
-	@echo "--------------------------"
-
-	pdm run mkdocs build
-
-	@echo ""
+.PHONY: push
+push:
+	git pull origin main; \
+	git add --all; \
+	git commit --m "automated push"; \
+	git push origin main
